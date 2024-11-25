@@ -7,7 +7,10 @@ if (!requireNamespace("arrow", quietly = TRUE)) {
   install.packages("arrow")
 }
 library(arrow)
-
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+library(dplyr)
 
 # Download player statistics for all available seasons
 ## must be broken up into decades so all data is collected
@@ -36,3 +39,26 @@ write_parquet(qbr_2024, "data/raw_data/advanced_stats/qbr_2024.parquet")
 
 nextgen_16_24 <- load_nextgen_stats(seasons = 2016:2024)
 write_parquet(nextgen_16_24, "data/raw_data/advanced_stats/next_gen.parquet")
+
+# pbp data
+
+for (year in 2000:2024) {
+  tryCatch({
+    # Download play-by-play data for the year
+    pbp_data <- load_pbp(year)
+    # Define the output file name
+    output_file <- file.path("data/raw_data/pbp", paste0("playbyplay_", year, ".parquet"))
+    # Save the data as a Parquet file
+    write_parquet(pbp_data, output_file)
+    # Message indicating success
+    message("Successfully saved play-by-play data for ", year, " to ", output_file)
+  }, error = function(e) {
+    # Handle any errors
+    message("Error downloading or saving data for ", year, ": ", e$message)
+  })
+}
+
+teams <- load_schedules(seasons = 2000:2023)
+teams <- teams %>%
+  filter(game_type == "REG")
+write_parquet(teams, "data/raw_data/game_stats/team_stats.parquet")
