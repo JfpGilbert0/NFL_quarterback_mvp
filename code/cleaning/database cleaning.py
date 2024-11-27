@@ -28,6 +28,17 @@ stats['gp'] = 1
 # Team season records are included to be used as a varable in regresion
 team_record = pd.read_parquet("data/raw_data/game_stats/team_stats.parquet")
 
+# Create a column "playoff" initialized to 0
+team_record['playoff'] = 0
+
+# Find teams and seasons that have a game_type != 'REG'
+playoff_teams = team_record[team_record['game_type'] != 'REG'][['season', 'away_team', 'home_team']]
+playoff_teams = (playoff_teams[['season', 'away_team']].rename(columns={'away_team': 'team'})
+                          ._append(playoff_teams[['season', 'home_team']].rename(columns={'home_team': 'team'}))
+                          .drop_duplicates()
+                          .reset_index(drop=True))
+
+team_record = team_record[team_record['game_type'] == "REG"]
 # Create a new DataFrame for team records
 team_records = []
 
@@ -116,6 +127,10 @@ season_stats['td:int'] = season_stats['passing_tds']/season_stats['interceptions
 season_stats['completion_pct'] = (season_stats['completions']/season_stats['attempts'])
 season_stats['win_pct'] = season_stats['win']/season_stats['gp']
 
+print(f"pre merge:{season_stats}")
+# creating playoff variable
+season_stats['playoff'] = 0
+season_stats.loc[season_stats.set_index(['season', 'recent_team']).index.isin(playoff_teams.set_index(['season', 'team']).index), 'playoff'] = 1
 
 
 season_stats.to_csv("data/cleaned_data/qb_season_stats.csv", index=False)
@@ -214,7 +229,7 @@ mvp_ranks = [
 
 columns = ['season', 'rank', 'votes', 'player']
 mvp_df = pd.DataFrame(mvp_ranks, columns=columns)
-print(mvp_df.head())
+#print(mvp_df.head())
 
 mvp_season_stats = season_stats.merge(mvp_df[['season', 'player', 'rank', 'votes']], 
                                                left_on=['season', 'player_display_name'], 
@@ -227,7 +242,7 @@ mvp_season_stats['if_mvp'] = (mvp_season_stats['votes'] >= 16).astype(int)
 mvp_season_stats['if_mvp_votes'] = (mvp_season_stats['votes'] > 0).astype(int)
 
 # Preview before saving
-print(mvp_season_stats.sort_values(by='season', ascending=True))
+#print(mvp_season_stats.sort_values(by='season', ascending=True))
 mvp_season_stats.to_parquet("data/cleaned_data/mvp_season_stats.parquet")
 
 
@@ -246,7 +261,7 @@ for col in per_game_columns:
     if col in pg_season_stats.columns:
         pg_season_stats[f'{col}_pg' ] = pg_season_stats[col] / pg_season_stats['gp']
 
-print(pg_season_stats.columns.to_list())
+#print(pg_season_stats.columns.to_list())
 
 pg_season_stats.to_parquet("data/cleaned_data/mvp_season_stats_with_per_game.parquet")
 
@@ -256,19 +271,24 @@ pg_season_stats.to_parquet("data/cleaned_data/mvp_season_stats_with_per_game.par
 
 def add_binary_stats(mvp_season_stats):
     high_stats = ['passing_tds', 'rushing_tds',  'passing_yards', 'passing_first_downs', 'pacr', 'rushing_yards', 'rushing_first_downs']
-    low_stats = ['total_fumbles', 'sacks', 'sack_yards','interceptions']
+    low_stats = ['total_fumbles_lost', 'sacks', 'sack_yards','interceptions']
     for stat in high_stats:
         if stat in mvp_season_stats.columns:
             mvp_season_stats[f'{stat}_best'] = mvp_season_stats.groupby('season')[stat].transform(
                 lambda x: np.where(x == x.max(), 1, 0))
+            mvp_season_stats[f'{stat}_{int(90)}pctile'] = mvp_season_stats.groupby('season')[stat].transform(
+                    lambda x: np.where(x >= x.quantile(0.9),1,0))
             for q in [0.5, 0.75]:
                 mvp_season_stats[f'{stat}_{int(q*100)}pctile'] = mvp_season_stats.groupby('season')[stat].transform(
                     lambda x: np.where((x >= x.quantile(q)) & (x < x.quantile(q + 0.25)), 1, 0)
                 )
+            
     for stat in low_stats:
         if stat in mvp_season_stats.columns:
             mvp_season_stats[f'{stat}_best'] = mvp_season_stats.groupby('season')[stat].transform(
                 lambda x: np.where(x == x.min(), 1, 0))
+            mvp_season_stats[f'{stat}_{int(90)}pctile'] = mvp_season_stats.groupby('season')[stat].transform(
+                    lambda x: np.where(x <= x.quantile(0.1),1,0))
             for q in [0.5, 0.25]:
                 mvp_season_stats[f'{stat}_{int((1-q)*100)}pctile'] = mvp_season_stats.groupby('season')[stat].transform(
                     lambda x: np.where((x > x.quantile(q-0.25)) & (x <= x.quantile(q)), 1, 0)
@@ -276,7 +296,7 @@ def add_binary_stats(mvp_season_stats):
     return mvp_season_stats    
 mvp_season_stats = add_binary_stats(mvp_season_stats)
 
-print(mvp_season_stats.columns.to_list())
+#print(mvp_season_stats.columns.to_list())
 pg_season_stats.to_parquet("data/cleaned_data/mvp_season_stats_with_binary.parquet")
 
 
@@ -294,7 +314,7 @@ stats_2024 = stats_2024.merge(team_records_df,
                                     right_on=['season', 'week', 'qb_name', 'team'],
                                     how='inner')
 
-print(stats_2024)
+#print(stats_2024)
 
 
 aggregate_columns = {
@@ -323,6 +343,6 @@ season_stats_2024['completion_pct'] = (season_stats_2024['completions']/season_s
 season_stats_2024['win_pct'] = season_stats_2024['win']/season_stats_2024['gp']
 
 season_stats_2024 = add_binary_stats(season_stats_2024)
-print(season_stats_2024.columns.to_list)
+#print(season_stats_2024.columns.to_list)
 
 season_stats_2024.to_parquet("data/cleaned_data/season_stats_2024.parquet")
