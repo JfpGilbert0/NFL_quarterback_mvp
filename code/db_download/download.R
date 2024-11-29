@@ -58,7 +58,5 @@ for (year in 2000:2024) {
   })
 }
 
-teams <- load_schedules(seasons = 2000:2023)
-teams <- teams %>%
-  filter(game_type == "REG")
+teams <- load_schedules(seasons = 2000:2024)
 write_parquet(teams, "data/raw_data/game_stats/team_stats.parquet")
