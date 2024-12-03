@@ -120,6 +120,7 @@ season_stats = stats.groupby(['player_id', 'player_display_name', 'season', 'rec
 # Filters are put in place in order to only include qb's who play a significant number of games in a season
 # 1989 (joe montana only 10 mvps played less than 14) was the last time a player won MVP playng less than 14 games so this is used as the minimum
 season_stats = season_stats[season_stats['gp'] > 13]
+season_stats = season_stats[season_stats['season'] > 2005]
 # Variable creation:
 season_stats['total_fumbles'] = season_stats['receiving_fumbles'] + season_stats['rushing_fumbles'] + season_stats['sack_fumbles']
 season_stats['total_fumbles_lost'] = season_stats['receiving_fumbles_lost'] + season_stats['rushing_fumbles_lost'] + season_stats['sack_fumbles_lost']
@@ -238,7 +239,7 @@ mvp_season_stats = season_stats.merge(mvp_df[['season', 'player', 'rank', 'votes
 
 mvp_season_stats['votes'] = mvp_season_stats['votes'].fillna(0)
 # Binary values added for mvp winners
-mvp_season_stats['if_mvp'] = (mvp_season_stats['votes'] >= 16).astype(int)
+mvp_season_stats['if_mvp'] = (mvp_season_stats['rank'] == 1).astype(int)
 mvp_season_stats['if_mvp_votes'] = (mvp_season_stats['votes'] > 0).astype(int)
 
 # Preview before saving
@@ -269,32 +270,45 @@ pg_season_stats.to_parquet("data/cleaned_data/mvp_season_stats_with_per_game.par
 ## Create binary columns for each important stat
 
 
-def add_binary_stats(mvp_season_stats):
-    high_stats = ['passing_tds', 'rushing_tds',  'passing_yards', 'passing_first_downs', 'pacr', 'rushing_yards', 'rushing_first_downs']
-    low_stats = ['total_fumbles_lost', 'sacks', 'sack_yards','interceptions']
+def add_binary_stats(mvp_season_stats, high_stats: list , low_stats: list):
     for stat in high_stats:
         if stat in mvp_season_stats.columns:
             mvp_season_stats[f'{stat}_best'] = mvp_season_stats.groupby('season')[stat].transform(
                 lambda x: np.where(x == x.max(), 1, 0))
-            mvp_season_stats[f'{stat}_{int(90)}pctile'] = mvp_season_stats.groupby('season')[stat].transform(
-                    lambda x: np.where(x >= x.quantile(0.9),1,0))
+            pctile_col_name = f'{stat}_85pctile' if not stat.endswith('_pg') else f"{stat[:-3]}_85pctile"
+            mvp_season_stats[pctile_col_name] = mvp_season_stats.groupby('season')[stat].transform(
+                    lambda x: np.where(x >= x.quantile(0.85),1,0))
             for q in [0.5, 0.75]:
                 mvp_season_stats[f'{stat}_{int(q*100)}pctile'] = mvp_season_stats.groupby('season')[stat].transform(
                     lambda x: np.where((x >= x.quantile(q)) & (x < x.quantile(q + 0.25)), 1, 0)
                 )
             
     for stat in low_stats:
+
         if stat in mvp_season_stats.columns:
             mvp_season_stats[f'{stat}_best'] = mvp_season_stats.groupby('season')[stat].transform(
                 lambda x: np.where(x == x.min(), 1, 0))
-            mvp_season_stats[f'{stat}_{int(90)}pctile'] = mvp_season_stats.groupby('season')[stat].transform(
-                    lambda x: np.where(x <= x.quantile(0.1),1,0))
+            pctile_col_name = f'{stat}_85pctile' if not stat.endswith('_pg') else f"{stat[:-3]}_85pctile"
+            mvp_season_stats[pctile_col_name] = mvp_season_stats.groupby('season')[stat].transform(
+                    lambda x: np.where(x <= x.quantile(0.15),1,0))
             for q in [0.5, 0.25]:
                 mvp_season_stats[f'{stat}_{int((1-q)*100)}pctile'] = mvp_season_stats.groupby('season')[stat].transform(
                     lambda x: np.where((x > x.quantile(q-0.25)) & (x <= x.quantile(q)), 1, 0)
                 )
     return mvp_season_stats    
-mvp_season_stats = add_binary_stats(mvp_season_stats)
+mvp_season_stats = add_binary_stats(mvp_season_stats, high_stats = ['td:int','completion_pct', 'passing_tds', 'rushing_tds',  'passing_yards', 'passing_first_downs', 'pacr', 'rushing_yards', 'rushing_first_downs']
+    ,low_stats = ['total_fumbles_lost', 'sacks', 'sack_yards','interceptions'])
+# Create some interaction variables
+def create_interactions(df):
+    df['win_pct_x_passing_tds_85pctile'] = df['win_pct'] * df['passing_tds_85pctile']
+    df['win_pct_x_passing_first_downs_85pctile'] = df['win_pct'] * df['passing_first_downs_85pctile']
+    df['win_pct_x_td_int'] = df['win_pct'] * df['td:int']
+    df['passing_tds_85pctile_x_td_int'] = df['passing_tds_85pctile'] * df['td:int']
+    df['passing_tds_85pctile_x_rushing_tds_85pctile'] = df['passing_tds_85pctile'] * df['rushing_tds_85pctile']
+    df['passing_yards_85pctile_x_rushing_yards_85pctile'] = df['passing_yards_85pctile'] * df['rushing_yards_85pctile']
+    df['passing_first_downs_85pctile_x_passing_yards_85pctile'] = df['passing_first_downs_85pctile'] * df['passing_yards_85pctile']
+    return df
+mvp_season_stats=create_interactions(mvp_season_stats)
 
 #print(mvp_season_stats.columns.to_list())
 pg_season_stats.to_parquet("data/cleaned_data/mvp_season_stats_with_binary.parquet")
@@ -310,9 +324,9 @@ stats_2024['gp'] = 1
 
 
 stats_2024 = stats_2024.merge(team_records_df,
-                                    left_on=['season','week', 'player_display_name', 'recent_team'],
-                                    right_on=['season', 'week', 'qb_name', 'team'],
-                                    how='inner')
+                                    left_on=['season','week',  'recent_team'],
+                                    right_on=['season', 'week', 'team'],
+                                    how='left')
 
 #print(stats_2024)
 
@@ -333,6 +347,8 @@ aggregate_columns = {
 ## Group by player_id, player_name, season and aggregate
 season_stats_2024 = stats_2024.groupby(['player_id', 'player_display_name', 'season', 'recent_team']).agg(aggregate_columns).reset_index()
 season_stats_2024= season_stats_2024[season_stats_2024['gp']>5]
+season_stats_2024= season_stats_2024[season_stats_2024['attempts']>100]
+print(season_stats_2024[['player_display_name','gp']])
 # Filters are put in place in order to only include qb's who play a significant number of games in a season
 # 1989 (joe montana only 10 mvps played less than 14) was the last time a player won MVP playng less than 14 games so this is used as the minimum
 # Variable creation:
@@ -342,7 +358,28 @@ season_stats_2024['td:int'] = season_stats_2024['passing_tds']/season_stats_2024
 season_stats_2024['completion_pct'] = (season_stats_2024['completions']/season_stats_2024['attempts'])
 season_stats_2024['win_pct'] = season_stats_2024['win']/season_stats_2024['gp']
 
-season_stats_2024 = add_binary_stats(season_stats_2024)
-#print(season_stats_2024.columns.to_list)
+per_game_columns = [
+    'passing_yards', 'passing_tds', 'interceptions', 'passing_air_yards', 'passing_yards_after_catch',
+    'sacks', 'sack_yards', 'total_fumbles', 'total_fumbles_lost', 'passing_first_downs', 'passing_epa', 'passing_2pt_conversions',
+    'rushing_yards', 'rushing_tds', 'rushing_first_downs', 'rushing_2pt_conversions']
+
+for col in per_game_columns:
+    if col in season_stats_2024.columns:
+        season_stats_2024[f'{col}_pg' ] = season_stats_2024[col] / season_stats_2024['gp']
+
+season_stats_2024 = add_binary_stats(season_stats_2024, high_stats = ['td:int', 'completion_pct', 'passing_tds_pg', 'rushing_tds_pg',  'passing_yards_pg', 'passing_first_downs_pg', 'pacr', 'rushing_yards_pg', 'rushing_first_downs_pg']
+    ,low_stats = ['total_fumbles_lost_pg', 'sacks_pg', 'sack_yards_pg','interceptions_pg'])
+# playoff probabilities gathered from https://www.nfl.com/standings/playoff-picture
+playoff_proba = [["NYJ", 0.02],["LA", 0.10 ],["ATL", 0.51],["SEA", 0.46],["NO", 0.04],
+                 ["DAL", 0.03],["DET", 1.00],["CLE", 0.00],["KC", 1.00],["BAL", 0.99],
+                 ["TB", 0.54],["BUF", 1.00],["MIN", 0.98],["ARI", 0.51],["LV", 0.00],
+                 ["NYG", 0.00],["MIA", 0.16],["GB", 0.91],["LAC", 0.86],["PHI", 1.0],
+                 ["CIN", 0.13],["PIT", 0.93],["JAX", 0.00],["SF", 0.15],["HOU", 0.94],
+                 ["DEN", 0.73],["NE", 0.00],["WAS", 0.59],["CHI", 0.00],["CAR", 0.00],["IND", 0.21],["TEN", 0.02]]
+playoff_probs = pd.DataFrame(playoff_proba)
+playoff_probs.columns = ["recent_team", "playoff"]
+season_stats_2024 = season_stats_2024.merge(playoff_probs, on='recent_team', how='left')
+
+# Create some interaction variables
 
 season_stats_2024.to_parquet("data/cleaned_data/season_stats_2024.parquet")
