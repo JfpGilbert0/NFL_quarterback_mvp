@@ -23,9 +23,12 @@ The repository consists of the following files and folders:
   - `result_data`: includes final results from the prediction and regression model. 
   
 - **`code/`**: Includes all Python scripts used in the project.
+  - `download.R` : R cod that downloads raw data from NFLverse
   - `data_cleaning.py`: Code used to clean and preprocess the data.
   - `xg_boost.py`: Script for training the XGBoost model and generating predictions.
   - `fig_x.py`: Contains code to generate the figures used in the paper.
+  - `test.py`: Tests the data in `mvp_season_stats_with_binary.parquet` for use in the model.
+  - `simulate.py`: simulates the dataset that will be used for analysis.
 
 - **`Predicting_NFL_MVP.qmd`**: Quarto document that contains the complete analysis, including all code, tables, and LaTeX mathematical representations.
   
