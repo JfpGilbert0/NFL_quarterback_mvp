@@ -2,7 +2,7 @@
 title: "What does it take to win th NFL MVP?"
 subtitle:  "Insights from Historical Quarterback Data and 2024 prediction"
 author: "Jacob Gilbert"
-date: "2024-11-27"
+date: "2024-12-02"
 format:
   pdf:
     geometry: "left=1cm,right=1cm"
