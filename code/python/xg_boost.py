@@ -56,6 +56,7 @@ xgb_model.fit(X_train, y_train)
 # Show the feature importances for the variables
 feature_importances = pd.DataFrame({'Variable': vars, 'Importance': xgb_model.feature_importances_})
 print("Feature importances for the XGBoost model:\n", feature_importances.to_markdown(index=False, tablefmt='pipe'))
+feature_importances.to_parquet("data/results_data/regression_results.parquet")
 
 # Predict on the test set
 y_pred = xgb_model.predict(X_test)
