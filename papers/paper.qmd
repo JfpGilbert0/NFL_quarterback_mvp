@@ -5,33 +5,47 @@ date: "2024-11-27"
 format:
   pdf:
     geometry: "left=1cm,right=1cm"
+    link-citations: true
+toc: true
+abstract: |
+    "This paper aims to predict the NFL MVP for the 2024 season by analyzing historical quarterback performance data. Using an XGBoost classifier, we identify the key performance metrics, such as passing touchdowns, win percentage, and efficiency, that significantly influence a quarterback's likelihood of receiving MVP votes. The model highlights that both individual performance and team success are critical to a player's MVP candidacy, with win percentage being the most influential factor. Understanding these key characteristics helps fans, analysts, and stakeholders gain insights into what drives MVP-level success, enriching the broader conversation around evaluating elite player performance."
 bibliography: references.bib
-thanks: code available at 
+thanks: code available at https://github.com/JfpGilbert0/NFL
 ---
+\newpage
 
 
-
+\newpage
 # Introduction {#sec-intro}
 
 The NFL MVP dates back to 1957, and since its introduction by the associated press, it has been the league’s most coveted individual award. It recognizes a player's individual success but also their impact on team success, and sometimes the sport as a whole, in a given season. The quarterback position has dominated the award’s winners, with the biggest names in the sport today such as Tom Brady, Aaron Rogers, Patrick Mahomes and Lamar Jackson all having won the award in the past decade. In the process setting records in major statistical categories such as passing yards and touchdowns. The quarterback positions focal point in the offence and statistical contributions to teams lead to its frequency at the top of mvp voting. This paper thus focuses on what makes a qb an mvp recipient, and which variables must a player excel at in order to qualify, according to historical data.
+
 Just winning is often not enough to show who wins an mvp, especially for quarterbacks. Players must show excellence in many key aspects of their position. This paper analyzes the determinants from statistical measures that are key to football's most important position , including passing yards, touchdowns, interceptions, completion percentage. The model evaluates whether a player is in the top 15% for a given statistical category in that season impacting their mvp candidacy. Helping us determine how excelling at which specific metrics are most strongly linked to MVP success.
+
 The 2024 season is more than half way through and as such the “race” for the mvp is heating up. Player performances this season have elevated some above the rest, as such the question of who has been the most valuable is becoming more and more relevant to all stakeholders of the league. By identifying mvp characteristics, the ongoing seasons' most valuable players can be predicted, which holds great value for most NFL stakeholders.The model in this paper predicts 2 likely candidates for mvp in this current season, as well as understanding why some of the league's best players are not in the conversation. 
 
-# Data
+The paper is structured as follows: @sec-intro introduces the NFL MVP award, focusing on its history and the significance of individual performance metrics for quarterbacks. @sec-data section provides details on the data used, including its compilation, features, and key variables, as well as measurement practices and limitations. Section 3 presents the XGBoost model used to predict MVP candidacy, including feature selection, model assumptions, and implementation details. Section 4 contains the results from the model, discussing feature importance, model accuracy, and the predicted MVP votes for the 2024 season. Finally, Section 5 discusses the implications of the results, providing a deeper analysis of what makes a quarterback an MVP candidate, and concludes with the model's predicted outcome for this year's MVP race.
 
-The dataset used for this analysis was compiled using the NFLverse (@nflverse) package in R (@rstudio) and supplemented by publicly available sources, covering player statistics since 2000. The data spans multiple aspects of player performance, including passing, rushing, and receiving metrics, showing player performance in each game they participated in each season. The data used includes records from both regular-season and playoff games, providing insight into players performances in every game they participated over the available timeframe.
+# Data {#sec-data}
+
+The dataset used for this analysis was compiled using the NFLverse (@nflverse) package in R (@rstudio) and supplemented by publicly available sources (@NFL), covering player statistics since 2006. Data cleaning and figure generation is done using Python (@python)  specifically utilizing the following packages: pandas (@pandas) for data manipulation and analysis, pyarrow (@pyarrow) for working with Apache Arrow and parquet file formats, and numpy (@numpy) for numerical operations and calculations.
+
+The data spans multiple aspects of player performance, including passing, rushing, and receiving metrics, showing player performance in each game they participated in each season. The data used includes records from both regular-season and playoff games, providing insight into players performances in every game they participated over the available timeframe.
+
 Key variables in the dataset include passing and rushing touchdowns and yards, passing attempts and completions, as well as negatively impacting plays such as fumbles and interceptions. Further details are included in the nature of plays made in a game such as passing and rushing first downs. More advanced statistics are included in the dataset such as Passing Air Conversion Ratio (PACR) which is a ratio of passing yards/ passing air yards, reflecting a passers ability to find receivers in space and thus resulting in more yards after the catch. Each datapoint in the dataset provides insights into a players performance in a game.
-The MVP is a season award and thus is focused on the regular season performance, as such we restrict our data to data in these games. Focusing on quarterbacks allows for direct comparison so only those players' statistical performances are kept for analysis. Season stats are aggregated from the game data provided by nflverse(@nflverse). Since 1984 no player has won the mvp award while playing less than 14 games in a season. The last being “insert name here”, thus analysis of players that did not play more than thirteen games is deemed unnecessary, especially since the 17 game season was introduced in “insert year” players who play less games become more irrelevant in our dataset. 
-Team success is gathered from an alternate dataset provided by nflverse (@nflverse) that provides game outcomes throughout each season. From this each team's win record with each QB is calculated for a given season. This is used to provide insight into how much a team's success relates to their quarterback's individual accolades. The NFL provides nfl mvp voting records since the awards inception. 32 votes decide the mvp with 16 resulting in winning the award. Receiving votes signifies that a player has performed at an mvp level in a given season,and thus the analysis dataset will include information on who won in a season but also the vote count for all players to allow for comprehensive analysis.
 
-## Measurement
+The MVP is a season award and thus is focused on the regular season performance, as such we restrict our data to data in these games. Focusing on quarterbacks allows for direct comparison so only those players' statistical performances are kept for analysis. Season stats are aggregated from the game data provided by nflverse(@nflverse). Since 1984 no player has won the mvp award while playing less than 14 games in a season. The last being “insert name here”, thus analysis of players that did not play more than thirteen games is deemed unnecessary, especially since the 17 game season was introduced in “insert year” players who play less games become more irrelevant in our dataset. 
+
+Team success is gathered from an alternate dataset provided by nflverse (@nflverse) that provides game outcomes throughout each season. From this each team's win record with each QB is calculated for a given season. This is used to provide insight into how much a team's success relates to their quarterback's individual accolades. The NFL (@NFL) provides nfl mvp voting records since the awards inception. 32 votes decide the mvp with 16 resulting in winning the award. Receiving votes signifies that a player has performed at an mvp level in a given season,and thus the analysis dataset will include information on who won in a season but also the vote count for all players to allow for comprehensive analysis.
+
+## Measurement 
 
 The data collection process for NFL statistics is highly standardized and conducted by the NFL’s official statisticians during each game. The NFL uses an advanced tracking system known as Next Gen Stats, which captures player movements using sensors embedded in players' shoulder pads and around the stadium. This system provides detailed information about player performance, such as speed, distance traveled, and player positioning, in addition to traditional stats like passing yards, rushing yards, touchdowns, and completions.
 Player statistics are recorded in real time during games by official NFL statisticians, who work to ensure accuracy through a rigorous validation process. These statistics are then cross-referenced and reviewed to correct any discrepancies. The data is made available publicly through the NFL’s official platforms, which ensures consistency across sources used for analysis.
 For this paper, variables such as passing yards, touchdowns, and interceptions were chosen because they are key indicators of quarterback performance and directly affect a player's likelihood of being considered for the MVP award. The derived variables, such as touchdown-to-interception ratio and win percentage, reflect more nuanced aspects of a quarterback's contribution to their team's success. The data thus represents a combination of both raw performance metrics and situational metrics, providing a comprehensive view of a player's overall value to their team.
-From table 2 we can see how the key statistics we are looking at vary across the seasons. As the game changes and years differ the meaning that values of these statistics hold change. For example in 2002 the 28 was the most passing touchdowns achieved, whereas this would be below the average in 2020. in @table2 this type of variablility is shown by the large standard deviations for the max values. Thus comparing across the seasons stats directly would incorrectly represent the importance of passing touchdowns. To avoid this issue we will measure how a player performed in a given statistic by if they fall in the 90th percentile for that statistic. This allows us to compare across seasons where the benchmark for greatness in a statistic may differ. This way we can identify which attributes are more attributed with MVP consideration when players excel at them.
+From table 2 we can see how the key statistics we are looking at vary across the seasons. As the game changes and years differ the meaning that values of these statistics hold change. For example in 2002 the 28 was the most passing touchdowns achieved, whereas this would be below the average in 2020. In the table 1,  this type of variablility is shown by the large standard deviations for the max values. Thus comparing across the seasons stats directly would incorrectly represent the importance of passing touchdowns. To avoid this issue we will measure how a player performed in a given statistic by if they fall in the 90th percentile for that statistic. This allows us to compare across seasons where the benchmark for greatness in a statistic may differ. This way we can identify which attributes are more attributed with MVP consideration when players excel at them.
 
-**Summary Statistics for Key Variables**
+**Summary Statistics for Key Variables**{#tbl:summary_stats}
 
 | Statistic           |   85th Pct Mean |   85th Pct std |   Max Value Mean |   Max Value std |
 |:--------------------|----------------:|---------------:|-----------------:|----------------:|
@@ -54,9 +68,10 @@ From table 2 we can see how the key statistics we are looking at vary across the
 For the context of this paper, MVP candidacy by predicting whether a player will receive any MVP votes. This approach allows us to capture those players who were significant enough in their performance to be recognized, even if they did not ultimately win the award. By modeling MVP candidates through this lens, we gain a nuanced understanding of what it takes to be considered among the league's elite players. This gives a greater sample size of mvp quality players for us to extract key characteristics from. Moreover, looking at mvp votes allow us to still gain insights from years that don't have a QB mvp winner, still informing us of the makeup of the best quarterback in the league.
 
 For the current season, statistics are presented in a per-game format, if they are not already aggregated stats, to avoid bias related to differences in the number of games played by different teams due to the season schedule. This ensures that players on teams with bye weeks or delayed games are not unfairly disadvantaged in the analysis, allowing for a fair comparison of performance across all players.
-# Model
 
-In this section, we present the XGBoost Classifier model used to predict which NFL quarterbacks are likely to receive MVP votes based on their performance metrics for a given season. XGBoost (Extreme Gradient Boosting) is an advanced, efficient implementation of gradient boosting that is well-suited for structured/tabular data. The choice of XGBoost reflects a need to capture complex, non-linear relationships among the input features while maintaining high predictive accuracy.
+# Model {#sec-model}
+
+In this section, we present the XGBoost Classifier model used to predict which NFL quarterbacks are likely to receive MVP votes based on their performance metrics for a given season. XGBoost (Extreme Gradient Boosting) is an advanced, efficient implementation of gradient boosting that is well-suited for structured/tabular data. The choice of XGBoost reflects a need to capture complex, non-linear relationships among the input features while maintaining high predictive accuracy. 
 
 ## XGBoost Model
 The XGBoost Classifier can be represented mathematically as an ensemble of decision trees:
@@ -66,9 +81,10 @@ F(x) = \sum_{k=1}^{K} f_k(x), \quad f_k \in \mathcal{F}
 $$
 
 Where:
-- \( F(x) \): The final model that is used to predict the target variable, aggregating all the decision trees.
-- \( f_k \): Represents an individual tree in the ensemble.
-- \( \mathcal{F} \): The space of regression trees.
+
+-  $F(x)$  : The final model that is used to predict the target variable, aggregating all the decision trees.
+-  $f_k$  : Represents an individual tree in the ensemble.
+-  $\mathcal{F}$ : The space of regression trees.
 
 The XGBoost model uses a gradient boosting approach to iteratively minimize the loss function:
 
@@ -77,16 +93,17 @@ L(\phi) = \sum_{i=1}^{n} l(y_i, \hat{y}_i) + \sum_{k=1}^{K} \Omega(f_k)
 $$
 
 Where:
-- \( L(\phi) \): The total loss function, composed of two parts.
-- \( l(y_i, \hat{y}_i) \): The loss function measuring the difference between the predicted value (\(\hat{y}_i\)) and the actual value (\(y_i\)). In our case, the "logloss" metric is used to measure this for classification.
-- \( \Omega(f_k) \): The regularization term, controlling the complexity of each individual tree to prevent overfitting.
+
+- $L(\phi)$ : The total loss function, composed of two parts.
+- $l(y_i, \hat{y}_i)$ : The loss function measuring the difference between the predicted value ( $\hat{y}_i$ ) and the actual value ( $y_i$ ). In our case, the "logloss" metric is used to measure this for classification.
+- $\Omega(f_k)$ : The regularization term, controlling the complexity of each individual tree to prevent overfitting.
 
 The output is a probability, which is then thresholded to predict whether a quarterback will receive MVP votes (1) or not (0).
 
 - **`eval_metric='logloss'`**: Log loss is used as the evaluation metric. It measures the accuracy of probability predictions in a logistic regression context.
 
 ## Feature Selection
-The predictor variables (\(X\)) used in the model are chosen based on their importance in determining quarterback performance and team success. They include:
+The predictor variables ($X$) used in the model are chosen based on their importance in determining quarterback performance and team success. They include:
 
 1. **`win_pct`**: The win percentage of the team, representing team success and thus, the player's contribution to winning.
 2. **`td:int`**: Ratio of touchdowns to interceptions, indicating efficiency.
@@ -110,7 +127,7 @@ XGBoost was chosen for its ability to:
 - **Complexity and Interpretability**: XGBoost is a more complex model compared to simpler alternatives such as logistic regression. While this complexity helps in accuracy, it also makes interpretation more challenging.
   
 ## Implementation and Validation
-The model was implemented using Python (@python) with the `xgboost` library (@xgboost). To validate the model, the dataset was split into training (90%) and testing (10%) sets using sklearn packages (@sklearn), ensuring that the model's performance was evaluated on unseen data. The following steps were taken:
+The model was implemented using Python (@python) with the `xgboost` library (@xgboost). To validate the model, the dataset was split into training (90%) and testing (10%) sets using sklearn packages (@scikit-learn), ensuring that the model's performance was evaluated on unseen data. The following steps were taken:
 
 1. **Training and Testing Split**: The data was split into 90% for training and 10% for testing, allowing us to assess out-of-sample predictive performance.
 2. **Standardization**: Predictor variables were standardized using `StandardScaler` to ensure they contribute equally to the model.
@@ -123,7 +140,8 @@ An alternative model considered was **logistic regression**, which provides more
 
 ## Conclusion
 The XGBoost Classifier was used to predict which quarterbacks would receive MVP votes based on season statistics. The model’s choice was guided by its ability to handle non-linear relationships, provide feature importance, and regularize effectively to prevent overfitting. The resulting model achieved high accuracy and provided insightful conclusions about what makes a quarterback an MVP candidate. While XGBoost offers increased accuracy, it also introduces complexity that limits interpretability, a trade-off that was carefully considered in our analysis.
-# Results
+
+# Results {#sec-results}
 ## Regression Results
 
 **Feature importances for the XGBoost model**
@@ -172,6 +190,7 @@ The regression results from the XGBoost model reveal that win_pct was the most i
 
 The model achieved an accuracy score of 0.97, demonstrating a strong predictive capability. The confusion matrix shows that out of 34 players, 30 were correctly identified as not receiving MVP votes, while 3 were accurately identified as receiving votes. There was 1 false negative, indicating a player who received MVP votes but was not identified by the model. The high precision of 1.00 for players who received votes means that all positive predictions made by the model were correct, although the recall of 0.75 for this class suggests that not all players who received votes were successfully predicted
 
+\newpage 
 
 ## MVP Votes Predictions for 2024 Season
 **Prediction and probability for 2024 MVP vote recipients**
@@ -221,7 +240,7 @@ The model achieved an accuracy score of 0.97, demonstrating a strong predictive 
 Using the XG boost model we can extract who is predicted this year, based on their current rankings of key statistics per game, which quarterbacks will receive mvp votes.  This list of predictions only includes players who have at least 10 games played, to display only those deemed to be contenders, however 36 quarterbacks percentages were predicted in total. This model predicts that based on their performance in key statistics this year only 3 players are expected to receive votes, Jared Goff, Lamar Jackson and Josh allen. Josh Allen boasts the highest probability of 97.6% chance of receiving votes. Both Jackson and Goff are sitting with approximately 60.4% chance of receiving votes. Only one other player has above 10% chance of receiving votes according to the model, that is Joe Burrow with a predicted 38.6% chance. In the Discussion section we will look into the stats to understand why this is. But compared to the rest of the quarterbacks, he is much closer to the mvp than he is to any of them.
 
 
-# Discussion
+# Discussion {#sec-discussion}
 ## Model discussion
 The regression results highlight several interesting implications about how MVP candidacy is influenced by efficiency versus production, as well as the importance of team success. 
 The high feature importance of win_pct indicates that team success plays a pivotal role in determining MVP votes. This means that even if a player has a statistical season below exceptional, their chances of receiving MVP votes can be greatly inflated by the team's success. In some context this could lead to unfair favouritism to great teams rather than great players. The inverse is also true, that players playing at an mvp level could be passed over due to team success which is not always in control of the individual player. This bias towards team success suggests that the MVP is not purely a measure of individual excellence but also considers a player's contribution to the team's overall achievements.
@@ -236,10 +255,13 @@ This is a problem with the model that does extend across the variables, and that
 
 In summary, the regression analysis underscores that while individual performance is crucial for MVP candidacy, team success remains a major determinant. The model indicates that standout offensive achievements, particularly in passing metrics, are highly valued. Being the best in the league in other facets does positively impact mvp odds however complementing winning with offensive production is more valued than limiting negative production. The model also does have some shortfalls as it regresses a season worth of visual spectacles to one number, people are often emotional about sports and thus there is more understanding to be had as to what makes and MVP outside of the number.
 \newpage
+
 ## 2024 prediction
+
 Inputting this years current standings in key statistics offers a prediction from the model. Looking at the 4 quarterbacks that are leading the MVP conversation in greater detail gives an informative view at why they are contenders. The model analyses being in the 85th percentile in most statistics, in the 2024 season among qualifying quarterbacks this means ranking in the top 5 in a statistic. 
 
 **2024 MVP candidates per game statistics and ranking**
+{#tbl:summary_statistics}
 
 +-----------------+---------+------------+----------+-----------+-----------+-------------+-------------+-------------+-------------+--------+----------------+---------+-------------+--------+
 | Player          | Win %   | MVP prop   | TD: INT  | Pass TD   | Rush TD   | Pass Yrds   | Rush Yrds   | Pass 1sts   | Rush 1sts   | PAC R  | Fumbles Lost   | Sacks   | Sack Yrds   | Ints   |
@@ -272,3 +294,27 @@ Lamar Jackson is an interesting case, as his statistics per game are very simila
 
 In conclusion Our model predicts a race likely to come down to three major candidates for MVP. Josh allen however has so far excelled at a majority of key statistical categories while maintaining a strong winning percentage. This balance of personal and team success puts him at the top of the MVP conversation, for now. Should this success continue in both key facets, The model expects Josh Allen to win his first MVP award.
 
+\newpage
+
+# Appendix 
+
+In this appendix, we explore how an idealized survey or observational data collection methodology could enhance the insights provided by the analysis in this paper. The dataset used to predict NFL MVP candidacy relied heavily on objective statistics collected from game performances, such as passing yards, win percentage, and touchdown counts. However, one area of interest not captured by these metrics is the public and media perception of a player’s impact, which can significantly influence MVP voting outcomes. To address this gap, an observational survey or polling approach could provide supplementary insights into MVP candidacy.
+
+## Survey Design and Sampling
+A well-structured survey could be conducted targeting NFL fans, analysts, and sports journalists to understand their perceptions of player performance, team success, and other less quantifiable traits that contribute to MVP consideration. This survey would aim to answer questions about which qualities fans and analysts deem most valuable in an MVP candidate, beyond the statistics. For instance, questions could explore the perceived impact of players on team morale, clutch performance in high-stakes games, and leadership—factors that might not be adequately represented in objective datasets [@kuper2014soccernomics]. This approach is similar to survey-based studies conducted in the field of behavioral economics where public perception influences economic outcomes [@thaler2008nudge].
+
+To ensure the survey's accuracy, a stratified random sampling approach would be utilized. The population of interest would include NFL fans, analysts, and journalists, stratified based on characteristics like age, geographical location, and engagement level with the NFL (e.g., casual viewers vs. experts). This stratification would allow the survey to adequately capture diverse perspectives and biases, which is crucial given the varied ways people perceive player performance. Ideally, the survey sample size would be large enough to reduce sampling error and improve confidence in the results, similar to techniques described by Groves et al. [@groves2009survey] for improving survey reliability.
+
+## Incorporating Observational Data
+Beyond surveys, observational data could also be gathered to assess the narrative aspects that influence MVP voting. Observational data might include media coverage volume, social media sentiment, and the frequency of players being mentioned in highlight reels or news stories. Platforms such as Twitter provide rich sources of data that could be harvested using techniques like sentiment analysis to gauge public opinion [@pak2010twitter]. This approach would also align with existing literature on the impact of media coverage on award voting, such as in the field of film awards, where media visibility can significantly influence outcomes [@simonton2004film].
+
+One possible enhancement to the study would be a simulation of MVP voting based on these qualitative factors to compare with the results of the current model. Such a simulation could use a weighted voting system that combines the statistical metrics used in this paper with survey and observational data. Each weight could be calibrated based on historical voting outcomes and validated using techniques such as cross-validation on past seasons' data. This would provide an in-depth exploration of the factors that influence MVP candidacy and enhance our understanding of both objective performance and subjective perceptions in the MVP selection process.
+
+## Potential Biases and Limitations
+It is important to acknowledge potential biases inherent in survey and observational methodologies. For instance, fan surveys may be subject to response bias or over-represent fans of specific teams, particularly teams with larger fanbases. Similarly, media coverage tends to favor popular players or those in larger markets, which might skew the observational data [@entman2007framing]. Addressing these biases would require careful design considerations, such as weighting responses based on demographic characteristics or employing machine learning techniques to adjust for media biases.
+
+Overall, supplementing the current statistical analysis with a survey and observational data approach would provide a more holistic view of what drives MVP voting decisions. Such a mixed-methods approach would ensure a more nuanced understanding of player value, accounting for both measurable performance metrics and the subjective perceptions held by the public and experts.
+
+\newpage
+
+# References
