@@ -134,7 +134,6 @@ season_stats['playoff'] = 0
 season_stats.loc[season_stats.set_index(['season', 'recent_team']).index.isin(playoff_teams.set_index(['season', 'team']).index), 'playoff'] = 1
 
 
-season_stats.to_csv("data/cleaned_data/qb_season_stats.csv", index=False)
 season_stats.to_parquet("data/cleaned_data/qb_season_stats.parquet", index=False)
 
 # voting data gathered from  https://www.pro-football-reference.com/awards/ap-nfl-mvp-award.htm
