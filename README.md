@@ -6,7 +6,7 @@
 ## Overview
 
 This repository contains the analysis, data, and code related to the research paper titled **"Predicting This Year’s NFL MVP: Insights from Historical Data"**. The project aims to predict the NFL MVP of the current 2024 season using historical data, focusing specifically on quarterbacks and their performance metrics over the years. Leveraging the powerful machine learning model XGBoost, the paper explores which player metrics have the strongest influence on MVP selection, considering aspects like passing yards, touchdowns, team success, and efficiency ratios.
-
+**NFLVerse was th source of the data used in this paper** [LINK](https://nflverse.nflverse.com/)
 **Access the Full Paper**: [Link to Paper in PDF Format](https://github.com/JfpGilbert0/NFL\papers\Predicting_NFL_MVP.pdf)
 
 ## Abstract
@@ -39,6 +39,8 @@ The repository consists of the following files and folders:
 - **`requirements.txt`**: Lists all required Python packages for the project.
 
 - **`README.md`**: This file, providing an overview of the project.
+  
+- **`llm_usage`**: ChatGPt 4o was used as a coding assistant throughout the project,    all chats have been pasted in this text file for transparency
 
 ## Key Features
 
